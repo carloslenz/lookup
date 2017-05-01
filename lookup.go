@@ -1,3 +1,21 @@
+/*
+Package lookup load data (e.g, from environment variables) into struct.
+
+Instructions
+
+Define "lookup" tags for struct fields. The value should consist of the key to lookup followed by ",optional" when the field is not required.
+
+Provide an extraction function (e.g, os.LookupEnv), using NoError or NoBool to adapt functions with different signatures.
+
+Lookup sequences may be defined. Typically the last step has the defaults in a Map.
+
+Encoding
+
+complex64 and complex128: r,i separated by comma.
+
+[]byte: base64.
+
+*/
 package lookup
 
 import (
@@ -16,11 +34,11 @@ type (
 	}
 	// Seq tries a series of Looker instances in sequence.
 	Seq []Looker
-	// NoError adapts functions like os.LookupEnv to match Extract signature.
+	// NoError adapts functions like os.LookupEnv to match Looker signature.
 	NoError struct {
 		F func(string) (string, bool)
 	}
-	// NoBool adapts functions that return only value and error to match Extract signature.
+	// NoBool adapts functions that return only value and error to match Looker signature.
 	NoBool struct {
 		F func(string) (string, error)
 	}
@@ -67,7 +85,9 @@ var discard discardReporter
 
 func (r discardReporter) Report(key string, e interface{}) {}
 
-// Lookup uses fn to fill in fields according to their struct tags.
+// Lookup uses l to fill in fields according to their struct tags.
+// e should be a pointer to struct with "lookup" tags defined on its fields.
+// Only r can be nil.
 func Lookup(e interface{}, l Looker, r Reporter) error {
 	value := reflect.ValueOf(e)
 	if value.Kind() != reflect.Ptr || value.IsNil() {
