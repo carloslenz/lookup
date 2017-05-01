@@ -1,5 +1,5 @@
 /*
-Package lookup load data (e.g, from environment variables) into struct.
+Package lookup loads data (e.g, from environment variables) into struct.
 
 Instructions
 
