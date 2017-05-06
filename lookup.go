@@ -5,16 +5,14 @@ Instructions
 
 Define "lookup" tags for struct fields. The value should consist of the key to lookup followed by ",optional" when the field is not required.
 
-Provide an extraction function (e.g, os.LookupEnv), using NoError or NoBool to adapt functions with different signatures.
+Provide extraction functions (e.g, os.LookupEnv), using NoError or NoBool to adapt functions with different signatures.
+Typically the last step has the defaults in a Map.
 
-Lookup sequences may be defined. Typically the last step has the defaults in a Map.
-
-Encoding
-
-complex64 and complex128: r,i separated by comma.
-
-[]byte: base64.
-
+Supported basic types and encoding:
+	-string: as-is.
+	-(u)int8/16/32/64/float32/float64/bool: strconv functions.
+	-complex64/complex128: r,i separated by comma.
+	-[]byte: base64.
 */
 package lookup
 
@@ -32,8 +30,6 @@ type (
 	Looker interface {
 		LookupKey(string) (string, bool, error)
 	}
-	// Seq tries a series of Looker instances in sequence.
-	Seq []Looker
 	// NoError adapts functions like os.LookupEnv to match Looker signature.
 	NoError struct {
 		F func(string) (string, bool)
@@ -62,8 +58,7 @@ func (l NoBool) LookupKey(s string) (v string, b bool, err error) {
 	return v, err != nil, err
 }
 
-// LookupKey returns the first response among its items where: err == nil && b == True. Otherwise the last response is returned.
-func (l Seq) LookupKey(s string) (v string, b bool, err error) {
+func lookupKey(s string, l []Looker) (v string, b bool, err error) {
 	for _, e := range l {
 		v, b, err = e.LookupKey(s)
 		if err == nil && b {
@@ -85,10 +80,11 @@ var discard discardReporter
 
 func (r discardReporter) Report(key string, e interface{}) {}
 
-// Lookup uses l to fill in fields according to their struct tags.
+// Lookup uses seq to fill in struct fields according to their tags.
 // e should be a pointer to struct with "lookup" tags defined on its fields.
-// Only r can be nil.
-func Lookup(e interface{}, l Looker, r Reporter) error {
+// For each field, items in seq are tried in sequence and lookup fails only if all of them fail.
+// Can be nil.
+func Lookup(e interface{}, r Reporter, seq ...Looker) error {
 	value := reflect.ValueOf(e)
 	if value.Kind() != reflect.Ptr || value.IsNil() {
 		return errors.New("Lookup needs a pointer argument")
@@ -124,7 +120,7 @@ func Lookup(e interface{}, l Looker, r Reporter) error {
 			continue
 		}
 
-		v, ok, err := l.LookupKey(fieldKey)
+		v, ok, err := lookupKey(fieldKey, seq)
 		if err != nil {
 			return fmt.Errorf("lookup for for field %q failed: %s", fieldType.Name, err)
 		}

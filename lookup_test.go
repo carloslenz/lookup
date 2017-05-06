@@ -26,13 +26,11 @@ func TestLookup(t *testing.T) {
 		"E": "lorem ipsum",
 	}
 
-	looker := lookup.Seq{lookup.NoError{F: os.LookupEnv}, defaults}
-
 	var c conf
 	var e entries
 
 	e = nil
-	if err := lookup.Lookup(&c, looker, &e); err == nil {
+	if err := lookup.Lookup(&c, &e, lookup.NoError{F: os.LookupEnv}, defaults); err == nil {
 		t.Fatalf("There are missing fields, why no error?! conf = %#v, entries = %#v", c, e)
 	}
 
@@ -40,7 +38,7 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("Could set env D: %s", err)
 	}
 
-	if err := lookup.Lookup(&c, looker, nil); err != nil {
+	if err := lookup.Lookup(&c, nil, lookup.NoError{F: os.LookupEnv}, defaults); err != nil {
 		t.Fatalf("There shouldn't be missing fields, yet error = %#v", err)
 	}
 
@@ -60,7 +58,7 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("Could set env C: %s", err)
 	}
 
-	if err := lookup.Lookup(&c, looker, nil); err != nil {
+	if err := lookup.Lookup(&c, nil, lookup.NoError{F: os.LookupEnv}, defaults); err != nil {
 		t.Fatalf("There shouldn't be missing fields, yet error = %#v", err)
 	}
 
@@ -73,7 +71,7 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("Could set env A: %s", err)
 	}
 
-	if err := lookup.Lookup(&c, looker, nil); err != nil {
+	if err := lookup.Lookup(&c, nil, lookup.NoError{F: os.LookupEnv}, defaults); err != nil {
 		t.Fatalf("There shouldn't be missing fields, yet error = %#v", err)
 	}
 
@@ -86,7 +84,7 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("Could set env A: %s", err)
 	}
 
-	if err := lookup.Lookup(&c, looker, nil); err != nil {
+	if err := lookup.Lookup(&c, nil, lookup.NoError{F: os.LookupEnv}, defaults); err != nil {
 		t.Fatalf("There shouldn't be missing fields, yet error = %#v", err)
 	}
 
@@ -100,7 +98,7 @@ func TestLookup(t *testing.T) {
 	}
 
 	e = nil
-	if err := lookup.Lookup(&c, looker, &e); err == nil {
+	if err := lookup.Lookup(&c, &e, lookup.NoError{F: os.LookupEnv}, defaults); err == nil {
 		t.Fatalf("A value has invalid type, why no error?! conf = %#v, entries = %#v", c, e)
 	}
 
@@ -109,7 +107,7 @@ func TestLookup(t *testing.T) {
 	}
 
 	e = nil
-	if err := lookup.Lookup(&c, looker, &e); err != nil {
+	if err := lookup.Lookup(&c, &e, lookup.NoError{F: os.LookupEnv}, defaults); err != nil {
 		t.Fatalf("There shouldn't be missing fields, yet error = %#v", err)
 	}
 
@@ -127,14 +125,13 @@ func TestLookup(t *testing.T) {
 	defaults = lookup.Map{
 		"C": "4.9",
 	}
-	looker = lookup.Seq{lookup.NoError{F: os.LookupEnv}, defaults}
 
 	if err := os.Unsetenv("C"); err != nil {
 		t.Fatalf("Could set unset env C: %s", err)
 	}
 
 	e = nil
-	if err := lookup.Lookup(&c, looker, &e); err == nil {
+	if err := lookup.Lookup(&c, &e, lookup.NoError{F: os.LookupEnv}, defaults); err == nil {
 		t.Fatalf("C value in defaults has invalid type, why no error?! conf = %#v, entries = %#v", c, e)
 	}
 
