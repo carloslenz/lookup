@@ -8,21 +8,24 @@ Define "lookup" tags for struct fields. The value should consist of the key to l
 Provide extraction functions (e.g, os.LookupEnv), using NoError or NoBool to adapt functions with different signatures.
 Typically the last step has the defaults in a Map.
 
-Supported basic types and encoding:
-	-string: as-is.
-	-(u)int8/16/32/64/float32/float64/bool: strconv functions.
-	-complex64/complex128: r,i separated by comma.
-	-[]byte: base64.
+Supported types
+
+Everything addressable uses fmt.Sscanln (because fmt.Sscan does not report an error when bools or floats don't consume the string completely) but newline is inserted internally.
+This means custom types can implement fmt.Scanner. Custom encoding:
+
+	- string: as-is.
+	- []byte: base64.
+
 */
 package lookup
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
+
+	"github.com/carloslenz/epp"
 )
 
 type (
@@ -80,6 +83,13 @@ var discard discardReporter
 
 func (r discardReporter) Report(key string, e interface{}) {}
 
+var lookupTags = []struct {
+	tag, optional string
+}{
+	{"json", "omitempty"},
+	{"lookup", "optional"},
+}
+
 // Lookup uses seq to fill in struct fields according to their tags.
 // e should be a pointer to struct with "lookup" tags defined on its fields.
 // For each field, items in seq are tried in sequence and lookup fails only if all of them fail.
@@ -87,7 +97,7 @@ func (r discardReporter) Report(key string, e interface{}) {}
 func Lookup(e interface{}, r Reporter, seq ...Looker) error {
 	value := reflect.ValueOf(e)
 	if value.Kind() != reflect.Ptr || value.IsNil() {
-		return errors.New("Lookup needs a pointer argument")
+		return epp.New("Lookup needs a pointer argument")
 	}
 
 	if r == nil {
@@ -103,26 +113,32 @@ func Lookup(e interface{}, r Reporter, seq ...Looker) error {
 		tag := fieldType.Tag
 		fieldKey := fieldType.Name
 		optional := false
+		found := false
 
-		if s, ok := tag.Lookup("lookup"); ok && s != "" {
-			parts := strings.Split(s, ",")
-			var key string
-			switch len(parts) {
-			case 1:
-				key = s
-			default:
-				key = parts[0]
-				optional = parts[1] == "optional"
-			case 0:
+		for _, def := range lookupTags {
+			if s, ok := tag.Lookup(def.tag); ok && s != "" {
+				parts := strings.Split(s, ",")
+				var key string
+				switch len(parts) {
+				case 0:
+					// Default: use field name, not optional.
+				case 1:
+					key = s
+				default:
+					key = parts[0]
+					optional = parts[1] == def.optional
+				}
+				fieldKey = key
+				found = true
 			}
-			fieldKey = key
-		} else {
+		}
+		if !found {
 			continue
 		}
 
 		v, ok, err := lookupKey(fieldKey, seq)
 		if err != nil {
-			return fmt.Errorf("lookup for for field %q failed: %s", fieldType.Name, err)
+			return epp.New("lookup for for field %q failed: %s", fieldType.Name, err)
 		}
 		if ok {
 			var err error
@@ -132,109 +148,38 @@ func Lookup(e interface{}, r Reporter, seq ...Looker) error {
 				field.SetString(v)
 				r.Report(fieldKey, v)
 
-			case int:
-				err = setInt(field, v, 64, r, fieldKey)
-			case int8:
-				err = setInt(field, v, 8, r, fieldKey)
-			case int16:
-				err = setInt(field, v, 16, r, fieldKey)
-			case int32:
-				err = setInt(field, v, 32, r, fieldKey)
-			case int64:
-				err = setInt(field, v, 64, r, fieldKey)
-
-			case uint:
-				err = setUint(field, v, 64, r, fieldKey)
-			case uint8:
-				err = setUint(field, v, 8, r, fieldKey)
-			case uint16:
-				err = setUint(field, v, 16, r, fieldKey)
-			case uint32:
-				err = setUint(field, v, 32, r, fieldKey)
-			case uint64:
-				err = setUint(field, v, 64, r, fieldKey)
-
-			case bool:
-				b, err := strconv.ParseBool(v)
-				if err != nil {
-					return fmt.Errorf(
-						"value %q for field %q is not bool: %s", v, fieldType.Name, err)
-				}
-				field.SetBool(b)
-				r.Report(fieldKey, b)
-
-			case float32:
-				err = setFloat(field, v, 32, r, fieldKey)
-			case float64:
-				err = setFloat(field, v, 64, r, fieldKey)
-
-			case complex64:
-				err = setComplex(field, v, 32, r, fieldKey)
-			case complex128:
-				err = setComplex(field, v, 64, r, fieldKey)
-
 			case []byte:
 				b, err := base64.RawStdEncoding.DecodeString(v)
 				if err != nil {
 					field.SetBytes(b)
 				}
 				r.Report(fieldKey, b)
+
+			default:
+				if field.CanAddr() {
+					var n int
+					n, err = fmt.Sscanln(v+"\n", field.Addr().Interface())
+					if err == nil && n != 1 {
+						err = epp.New("")
+					}
+					if err == nil {
+						r.Report(fieldKey, v)
+					}
+				} else {
+					return epp.New("field %q of type %T is not addressable", v, fieldType.Name)
+				}
+
 			}
 			if err != nil {
-				return fmt.Errorf(
+				return epp.New(
 					"value %q for field %q is not %T: %s", v, fieldType.Name, val, err)
 			}
 
 		} else if !optional {
-			return fmt.Errorf("missing value for required field %q", fieldType.Name)
+			return epp.New("missing value for required field %q", fieldType.Name)
 		} else {
 			r.Report(fieldKey, v)
 		}
 	}
-	return nil
-}
-
-func setUint(field reflect.Value, s string, bits int, r Reporter, fieldKey string) error {
-	u, err := strconv.ParseUint(s, 0, bits)
-	if err != nil {
-		return err
-	}
-	field.SetUint(u)
-	r.Report(fieldKey, u)
-	return nil
-}
-
-func setInt(field reflect.Value, s string, bits int, r Reporter, fieldKey string) error {
-	i, err := strconv.ParseInt(s, 0, bits)
-	if err != nil {
-		return err
-	}
-	field.SetInt(i)
-	r.Report(fieldKey, i)
-	return nil
-}
-
-func setFloat(field reflect.Value, s string, bits int, r Reporter, fieldKey string) error {
-	f, err := strconv.ParseFloat(s, bits)
-	if err != nil {
-		return err
-	}
-	field.SetFloat(f)
-	r.Report(fieldKey, f)
-	return nil
-}
-
-func setComplex(field reflect.Value, s string, bits int, r Reporter, fieldKey string) error {
-	var c [2]float64
-	for i, q := range strings.Split(s, ",")[:2] {
-		f, err := strconv.ParseFloat(q, bits)
-		if err != nil {
-			return err
-		}
-		c[i] = f
-	}
-	v := complex(c[0], c[1])
-	field.SetComplex(v)
-	r.Report(fieldKey, v)
 	return nil
 }

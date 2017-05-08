@@ -13,7 +13,7 @@ func TestLookup(t *testing.T) {
 	type conf struct {
 		A bool   `lookup:"A,optional"`
 		B int    `lookup:"B"`
-		C int64  `lookup:"C"`
+		C int64  `json:"C"`
 		D string `lookup:"D"`
 		E string `lookup:"E"`
 	}
@@ -116,7 +116,7 @@ func TestLookup(t *testing.T) {
 		t.Errorf("Unexpected result: %#v, expecting %#v", c, expected)
 	}
 
-	expectedReports := entries{"A", "false", "B", "2", "C", "8", "D", "something", "E", "unimportant"}
+	expectedReports := entries{"A", "f", "B", "2", "C", "8", "D", "something", "E", "unimportant"}
 	if !reflect.DeepEqual(e, expectedReports) {
 		t.Errorf("Unexpected reports: %#v, expecting %#v", e, expectedReports)
 	}
