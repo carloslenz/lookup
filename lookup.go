@@ -1,27 +1,31 @@
 /*
-Package lookup loads data (e.g, from environment variables) into struct.
+Package lookup loads configuration (e.g, from environment variables) into struct.
 
 Instructions
 
-Define "lookup" tags for struct fields. The value should consist of the key to lookup followed by ",optional" when the field is not required.
+Define "lookup" tags for struct fields. The value should consist of the key to lookup followed by
+",optional" when the field is not required. There is also compatibility with "encoding/json" tags,
+so you don't need to define both if the keys match.
 
-Provide extraction functions (e.g, os.LookupEnv), using NoError or NoBool to adapt functions with different signatures.
-Typically the last step has the defaults in a Map.
+lookup.Lookup() accepts multiple Looker functions like lookup.Env. To adapt existing functions use
+lookup.NoError and lookup.NoBool. To load system configuration files use lookup.NewJSON. Typically
+the last step has the defaults in a lookup.Map.
 
 Supported types
 
-Everything addressable uses fmt.Sscanln (because fmt.Sscan does not report an error when bools or floats don't consume the string completely) but newline is inserted internally.
-This means custom types can implement fmt.Scanner. Custom encoding:
+Everything fmt.Sscanln supports (because fmt.Sscan does not report an error when bools or floats
+don't consume the string entirely) but newline is inserted internally. This means custom types can
+implement fmt.Scanner. Exceptions:
 
-	- string: as-is.
-	- []byte: base64.
-
+	- string: used directly.
+	- []byte: decoded as base64.
 */
 package lookup
 
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
@@ -48,6 +52,9 @@ type (
 		Report(key string, e interface{})
 	}
 )
+
+// Env wraps os.LookupEnv.
+var Env = NoError{F: os.LookupEnv}
 
 // LookupKey always returns err == nil.
 func (l NoError) LookupKey(s string) (v string, b bool, err error) {

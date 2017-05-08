@@ -1,7 +1,7 @@
 lookup
 ======
 
-Go library to load data into structs.
+Go library to load configuration into structs.
 
 ---
 Author: Carlos Eduardo Lenz  
