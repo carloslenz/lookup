@@ -38,13 +38,13 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("There are missing fields, why no error?! conf = %#v, entries = %#v", c, e)
 	}
 
-	if err := os.Setenv("D", "something"); err != nil {
-		t.Fatalf("Could set env D: %s", err)
+	mustLookup := func() {
+		if err := lookup.Lookup(&c, nil, lookup.Env, json, defaults); err != nil {
+			t.Fatalf("There shouldn't be missing fields, yet error = %s", err)
+		}
 	}
-
-	if err := lookup.Lookup(&c, nil, lookup.Env, json, defaults); err != nil {
-		t.Fatalf("There shouldn't be missing fields, yet error = %s", err)
-	}
+	mustSetenv(t, "D", "something")
+	mustLookup()
 
 	expected := conf{
 		A: false,
@@ -58,59 +58,39 @@ func TestLookup(t *testing.T) {
 		t.Errorf("Unexpected result: %#v, expecting %#v", c, expected)
 	}
 
-	if err := os.Setenv("C", "8"); err != nil {
-		t.Fatalf("Could set env C: %s", err)
-	}
-
-	if err := lookup.Lookup(&c, nil, lookup.Env, json, defaults); err != nil {
-		t.Fatalf("There shouldn't be missing fields, yet error = %s", err)
-	}
+	mustSetenv(t, "C", "8")
+	mustLookup()
 
 	expected.C = 8
 	if c != expected {
 		t.Errorf("Unexpected result: %#v, expecting %#v", c, expected)
 	}
 
-	if err := os.Setenv("A", "1"); err != nil {
-		t.Fatalf("Could set env A: %s", err)
-	}
-
-	if err := lookup.Lookup(&c, nil, lookup.Env, json, defaults); err != nil {
-		t.Fatalf("There shouldn't be missing fields, yet error = %s", err)
-	}
+	mustSetenv(t, "A", "1")
+	mustLookup()
 
 	expected.A = true
 	if c != expected {
 		t.Errorf("Unexpected result: %#v, expecting %#v", c, expected)
 	}
 
-	if err := os.Setenv("E1", "unimportant"); err != nil {
-		t.Fatalf("Could set env A: %s", err)
-	}
-
-	if err := lookup.Lookup(&c, nil, lookup.Env, json, defaults); err != nil {
-		t.Fatalf("There shouldn't be missing fields, yet error = %s", err)
-	}
+	mustSetenv(t, "E1", "unimportant")
+	mustLookup()
 
 	expected.E = "unimportant"
 	if c != expected {
 		t.Errorf("Unexpected result: %#v, expecting %#v", c, expected)
 	}
 
-	if err := os.Setenv("A", "invalid bool"); err != nil {
-		t.Fatalf("Could set env A: %s", err)
-	}
-
 	e = nil
+	mustSetenv(t, "A", "invalid bool")
 	if err := lookup.Lookup(&c, &e, lookup.Env, json, defaults); err == nil {
 		t.Fatalf("A value has invalid type, why no error?! conf = %#v, entries = %#v", c, e)
 	}
 
-	if err := os.Setenv("A", "f"); err != nil {
-		t.Fatalf("Could set env A: %s", err)
-	}
-
 	e = nil
+	mustSetenv(t, "A", "f")
+	mustLookup()
 	if err := lookup.Lookup(&c, &e, lookup.Env, json, defaults); err != nil {
 		t.Fatalf("There shouldn't be missing fields, yet error = %s", err)
 	}
@@ -120,7 +100,7 @@ func TestLookup(t *testing.T) {
 		t.Errorf("Unexpected result: %#v, expecting %#v", c, expected)
 	}
 
-	expectedReports := entries{"A", "f", "B", "2", "C", "8", "D", "something", "E1", "unimportant"}
+	expectedReports := entries{"A", "false", "B", "2", "C", "8", "D", "something", "E1", "unimportant"}
 	if !reflect.DeepEqual(e, expectedReports) {
 		t.Errorf("Unexpected reports: %#v, expecting %#v", e, expectedReports)
 	}
@@ -139,6 +119,12 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("C value in defaults has invalid type, why no error?! conf = %#v, entries = %#v", c, e)
 	}
 
+}
+
+func mustSetenv(t *testing.T, k, v string) {
+	if err := os.Setenv(k, v); err != nil {
+		t.Fatalf("Could set env %s: %s", k, err)
+	}
 }
 
 type entries []string

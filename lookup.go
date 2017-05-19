@@ -117,76 +117,80 @@ func Lookup(e interface{}, r Reporter, seq ...Looker) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := value.Field(i)
 		fieldType := t.Field(i)
-		tag := fieldType.Tag
-		fieldKey := fieldType.Name
-		optional := false
-		found := false
 
-		for _, def := range lookupTags {
-			if s, ok := tag.Lookup(def.tag); ok && s != "" {
-				parts := strings.Split(s, ",")
-				var key string
-				switch len(parts) {
-				case 0:
-					// Default: use field name, not optional.
-				case 1:
-					key = s
-				default:
-					key = parts[0]
-					optional = parts[1] == def.optional
-				}
-				fieldKey = key
-				found = true
-			}
-		}
-		if !found {
+		fieldKey, optional := findTag(fieldType.Tag)
+		if fieldKey == notFound {
 			continue
 		}
 
 		v, ok, err := lookupKey(fieldKey, seq)
-		if err != nil {
+		switch {
+		case err != nil:
 			return epp.New("lookup for for field %q failed: %s", fieldType.Name, err)
-		}
-		if ok {
-			var err error
-			val := field.Interface()
-			switch val.(type) {
-			case string:
-				field.SetString(v)
-				r.Report(fieldKey, v)
-
-			case []byte:
-				b, err := base64.RawStdEncoding.DecodeString(v)
-				if err != nil {
-					field.SetBytes(b)
-				}
-				r.Report(fieldKey, b)
-
-			default:
-				if field.CanAddr() {
-					var n int
-					n, err = fmt.Sscanln(v+"\n", field.Addr().Interface())
-					if err == nil && n != 1 {
-						err = epp.New("")
-					}
-					if err == nil {
-						r.Report(fieldKey, v)
-					}
-				} else {
-					return epp.New("field %q of type %T is not addressable", v, fieldType.Name)
-				}
-
-			}
-			if err != nil {
+		case ok:
+			if err = setField(field, v, fieldKey, fieldType.Name, r); err != nil {
 				return epp.New(
-					"value %q for field %q is not %T: %s", v, fieldType.Name, val, err)
+					"value %q for field %q is not %T: %s", v, fieldType.Name, field.Interface(), err)
 			}
 
-		} else if !optional {
+		case !optional:
 			return epp.New("missing value for required field %q", fieldType.Name)
-		} else {
+		default:
 			r.Report(fieldKey, v)
 		}
 	}
+	return nil
+}
+
+const notFound = ""
+
+func findTag(tag reflect.StructTag) (key string, optional bool) {
+	for _, def := range lookupTags {
+		if s, ok := tag.Lookup(def.tag); ok && s != "" {
+			parts := strings.Split(s, ",")
+			var key string
+			switch len(parts) {
+			case 0:
+				// Default: use field name, not optional.
+			case 1:
+				key = s
+			default:
+				key = parts[0]
+				optional = parts[1] == def.optional
+			}
+			return key, optional
+		}
+	}
+	return notFound, false
+}
+
+func setField(field reflect.Value, v, fieldKey, fieldName string, r Reporter) error {
+	val := field.Interface()
+	switch val.(type) {
+	case string:
+		field.SetString(v)
+
+	case []byte:
+		b, err := base64.RawStdEncoding.DecodeString(v)
+		if err != nil {
+			return err
+		}
+		field.SetBytes(b)
+		r.Report(fieldKey, b)
+		return nil
+
+	default:
+		if !field.CanAddr() {
+			return epp.New("field %q of type %T is not addressable", v, fieldName)
+		}
+		n, err := fmt.Sscanln(v+"\n", field.Addr().Interface())
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return epp.New("")
+		}
+	}
+	r.Report(fieldKey, field.Interface())
 	return nil
 }
