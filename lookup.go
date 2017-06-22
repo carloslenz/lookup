@@ -24,12 +24,11 @@ package lookup
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"strings"
-
-	"github.com/carloslenz/epp"
 )
 
 type (
@@ -104,7 +103,7 @@ var lookupTags = []struct {
 func Lookup(e interface{}, r Reporter, seq ...Looker) error {
 	value := reflect.ValueOf(e)
 	if value.Kind() != reflect.Ptr || value.IsNil() {
-		return epp.New("Lookup needs a pointer argument")
+		return errors.New("Lookup needs a pointer argument")
 	}
 
 	if r == nil {
@@ -126,15 +125,15 @@ func Lookup(e interface{}, r Reporter, seq ...Looker) error {
 		v, ok, err := lookupKey(fieldKey, seq)
 		switch {
 		case err != nil:
-			return epp.New("lookup for for field %q failed: %s", fieldType.Name, err)
+			return fmt.Errorf("lookup for for field %q failed: %s", fieldType.Name, err)
 		case ok:
 			if err = setField(field, v, fieldKey, fieldType.Name, r); err != nil {
-				return epp.New(
+				return fmt.Errorf(
 					"value %q for field %q is not %T: %s", v, fieldType.Name, field.Interface(), err)
 			}
 
 		case !optional:
-			return epp.New("missing value for required field %q", fieldType.Name)
+			return fmt.Errorf("missing value for required field %q", fieldType.Name)
 		default:
 			r.Report(fieldKey, v)
 		}
@@ -181,14 +180,14 @@ func setField(field reflect.Value, v, fieldKey, fieldName string, r Reporter) er
 
 	default:
 		if !field.CanAddr() {
-			return epp.New("field %q of type %T is not addressable", v, fieldName)
+			return fmt.Errorf("field %q of type %T is not addressable", v, fieldName)
 		}
 		n, err := fmt.Sscanln(v+"\n", field.Addr().Interface())
 		if err != nil {
 			return err
 		}
 		if n != 1 {
-			return epp.New("")
+			return errors.New("nothing to read")
 		}
 	}
 	r.Report(fieldKey, field.Interface())

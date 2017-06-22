@@ -3,13 +3,23 @@ package lookup_test
 import (
 	"log"
 	"os"
+	"path"
 
 	"github.com/carloslenz/lookup"
 )
 
 func Example() {
-	defaultsHome := lookup.NewJSON(os.ExpandEnv("${HOME}/.my-server.json"))
-	defaultsSystem := lookup.NewJSON("/etc/my-server.json")
+	// This snippet tries to lookup from (in order of precedence):
+	// - command line
+	// - environment
+	// - json file at home dir
+	// - json file at system config dir
+	// - defaults embedded into the binary
+	args := lookup.NewArgs("-", os.Args)
+
+	const cfgName = "my-server.json"
+	defaultsHome := lookup.NewJSON(path.Join(os.ExpandEnv("${HOME}"), cfgName))
+	defaultsSystem := lookup.NewJSON(path.Join("/etc", cfgName))
 
 	defaultsBinary := lookup.Map{
 		"PORT": "8080",
@@ -19,8 +29,10 @@ func Example() {
 		Port   bool `json:"PORT"`
 		DBAddr int  `json:"DB_ADDR"`
 	}
-	err := lookup.Lookup(&cfg, nil, lookup.Env, defaultsHome, defaultsSystem, defaultsBinary)
+	err := lookup.Lookup(&cfg, nil, args, lookup.Env, defaultsHome, defaultsSystem, defaultsBinary)
 	if err != nil {
 		log.Fatal(err)
 	}
+	os.Args = args.ExtraArgs()
+	// Your server here.
 }
