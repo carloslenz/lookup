@@ -1,10 +1,9 @@
 package lookup_test
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
-
-	"bytes"
 
 	"github.com/carloslenz/lookup"
 )
