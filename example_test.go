@@ -18,8 +18,8 @@ func Example() {
 	args := lookup.NewArgs("-", os.Args)
 
 	const cfgName = "my-server.json"
-	defaultsHome := lookup.NewJSON(path.Join(os.ExpandEnv("${HOME}"), cfgName))
-	defaultsSystem := lookup.NewJSON(path.Join("/etc", cfgName))
+	defaultsHome := lookup.NewJSONFile(path.Join(os.ExpandEnv("${HOME}"), cfgName))
+	defaultsSystem := lookup.NewJSONFile(path.Join("/etc", cfgName))
 
 	defaultsBinary := lookup.Map{
 		"PORT": "8080",

@@ -10,7 +10,7 @@ type formLooker struct {
 	*http.Request
 }
 
-// NewForm returns a Looker to access r.Form.
+// NewForm returns a Looker to access r.Form. Any key present in req but empty is read as "1".
 func NewForm(req *http.Request) Looker {
 	return &formLooker{
 		Request: req,
