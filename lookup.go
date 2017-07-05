@@ -8,7 +8,7 @@ Define "lookup" tags for struct fields. The value should consist of the key to l
 so you don't need to define both if the keys match.
 
 lookup.Lookup() accepts multiple Looker functions like lookup.Env. To adapt existing functions use
-lookup.NoError and lookup.NoBool. To load system configuration files use lookup.NewJSON. Typically
+lookup.NoError and lookup.NoBool. To load system configuration files use lookup.NewJSONFile. Typically
 the last step has the defaults in a lookup.Map.
 
 Supported types

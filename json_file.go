@@ -14,8 +14,8 @@ type jsonLooker struct {
 	data  map[string]interface{}
 }
 
-// NewJSON returns a Looker that can extracts data from JSON file. File is loaded only once.
-func NewJSON(filename string) Looker {
+// NewJSONFile returns a Looker that can extracts data from JSON file. File is loaded only once.
+func NewJSONFile(filename string) Looker {
 	return &jsonLooker{
 		filename: filename,
 	}

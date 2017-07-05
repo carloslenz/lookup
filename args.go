@@ -13,7 +13,7 @@ type ArgsLooker struct {
 	data      Map
 }
 
-// NewArgs returns a Looker that can extract data from program arguments (e.g, os.Args).
+// NewArgs returns a Looker to access program arguments (e.g, os.Args).
 // Suggestions for prefix: "-", "--env-" or even "".
 // Valid args (<prefix><NAME>=<value>) are processed by LookupKey and the rest is available with ExtraArgs.
 func NewArgs(prefix string, args []string) *ArgsLooker {
