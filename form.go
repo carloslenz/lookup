@@ -3,7 +3,7 @@ package lookup
 import (
 	"net/http"
 
-	"github.com/carloslenz/epp"
+	"golang.org/x/xerrors"
 )
 
 type formLooker struct {
@@ -19,7 +19,7 @@ func NewForm(req *http.Request) Looker {
 
 func (l *formLooker) LookupKey(k string) (string, bool, error) {
 	if err := l.ParseForm(); err != nil {
-		return "", false, epp.Wrap(err, "ParseForm failed")
+		return "", false, xerrors.Errorf("ParseForm failed", err)
 	}
 
 	v, ok := l.Form[k]
