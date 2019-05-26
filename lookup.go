@@ -46,10 +46,6 @@ type (
 	}
 	// Map implements Looker. Use it to store defaults.
 	Map map[string]string
-	// Reporter is used by Lookup to report each successfully loaded entry. It can be used for logs, etc.
-	Reporter interface {
-		Report(key string, e interface{})
-	}
 )
 
 // Env wraps os.LookupEnv.
@@ -82,12 +78,6 @@ func (l Map) LookupKey(s string) (v string, b bool, err error) {
 	v, b = l[s]
 	return v, b, nil
 }
-
-type discardReporter struct{}
-
-var discard discardReporter
-
-func (r discardReporter) Report(key string, e interface{}) {}
 
 var lookupTags = []struct {
 	tag, optional string
