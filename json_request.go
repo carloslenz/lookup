@@ -14,7 +14,7 @@ type jsonRequestLooker struct {
 	data  map[string]interface{}
 }
 
-// NewJSONRequest returns a Looker to access r.Form. Any key present in req but empty is read as "1".
+// NewJSONRequest returns a Looker to access r.Body.
 func NewJSONRequest(req *http.Request) Looker {
 	return &jsonRequestLooker{
 		Request: req,
